@@ -18,7 +18,6 @@ public class FractalView {
     protected final int steps;
     protected final int maxIterations;
 
-    record PixelUpdate(int x, int y, int iterations){}
     private final ConcurrentLinkedQueue<PixelUpdate> pixelBuffer;
     private final Timeline updateTimeline;
     protected final int BATCH_SIZE = Config.getPixelBufferBatchSize();
@@ -58,7 +57,7 @@ public class FractalView {
             PixelUpdate update = pixelBuffer.poll();
             if(update != null) {
                 Color color = getColorInRange(update.iterations());
-                pixelWriter.setColor(update.x, update.y, color);
+                pixelWriter.setColor(update.x(), update.y(), color);
                 processed++;
             }
         }

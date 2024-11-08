@@ -56,7 +56,7 @@ public class Mandelbrot {
         }
     }
 
-    protected void streamMandelbrotCalculations(ConcurrentLinkedQueue<AsyncFractalView.PixelUpdate> pixelBuffer) {
+    protected void streamMandelbrotCalculations(ConcurrentLinkedQueue<PixelUpdate> pixelBuffer) {
         Arrays.stream(real)
             .parallel()
             .forEach(r -> Arrays.stream(imaginary)
@@ -65,11 +65,11 @@ public class Mandelbrot {
                         int y = (int) ((i - imaginaryMin) / stepSize);
                         int iterations = calculateAbsoluteValue(0, 0, r, i);
                         addBackPressure(pixelBuffer);
-                        pixelBuffer.offer(new AsyncFractalView.PixelUpdate(x, y, iterations));
+                        pixelBuffer.offer(new PixelUpdate(x, y, iterations));
                     }));
     }
 
-    protected void streamJulisSetFromCoordinate(int cRealIndex, int cImaginaryIndex, ConcurrentLinkedQueue<AsyncFractalView.PixelUpdate> pixelBuffer) {
+    protected void streamJulisSetFromCoordinate(int cRealIndex, int cImaginaryIndex, ConcurrentLinkedQueue<PixelUpdate> pixelBuffer) {
         double cReal = real[cRealIndex];
         double cImaginary = imaginary[cImaginaryIndex];
         Arrays.stream(real)
@@ -79,11 +79,11 @@ public class Mandelbrot {
                     int y = (int) ((zImaginary - imaginaryMin) / stepSize);
                     int iterations = calculateAbsoluteValue(zReal, zImaginary, cReal, cImaginary);
                     addBackPressure(pixelBuffer);
-                    pixelBuffer.offer(new AsyncFractalView.PixelUpdate(x, y, iterations));
+                    pixelBuffer.offer(new PixelUpdate(x, y, iterations));
                 }));
     }
 
-    private void addBackPressure(ConcurrentLinkedQueue<AsyncFractalView.PixelUpdate> pixelBuffer) {
+    private void addBackPressure(ConcurrentLinkedQueue<PixelUpdate> pixelBuffer) {
         while (pixelBuffer.size() > Config.getPixelBufferBatchSize() * 2) {
             Thread.yield();
         }

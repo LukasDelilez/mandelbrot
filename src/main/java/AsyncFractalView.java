@@ -8,7 +8,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class AsyncFractalView extends FractalView {
 
-    protected record PixelUpdate(int x, int y, int iterations){}
     private final ConcurrentLinkedQueue<PixelUpdate> pixelBuffer;
     private final Timeline updateTimeline;
     private volatile boolean isCalculating = false;
@@ -49,7 +48,7 @@ public class AsyncFractalView extends FractalView {
             PixelUpdate update = pixelBuffer.poll();
             if(update != null) {
                 Color color = getColorInRange(update.iterations());
-                pixelWriter.setColor(update.x, update.y, color);
+                pixelWriter.setColor(update.x(), update.y(), color);
                 processed++;
                 pixelsProcessed++;
             }
