@@ -1,7 +1,7 @@
 import java.util.Arrays;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class Mandelbrot {
-
 
     private double realMin;
     private double realMax;
@@ -14,13 +14,8 @@ public class Mandelbrot {
     private double[] real;
     private double[] imaginary;
 
-    public Mandelbrot() {
-        init();
-    }
 
-    public Mandelbrot(int steps, int iterations) {
-        this.steps = steps;
-        this.maxIterations = iterations;
+    public Mandelbrot() {
         init();
     }
 
@@ -39,10 +34,6 @@ public class Mandelbrot {
         imaginaryMax = Config.getImaginaryMax();
     }
 
-    public int[] getMandelbrotSet() {
-        return calculateMandelbrotValuesStream();
-    }
-
     protected void calculateStepSize() {
         stepSize = (Math.abs(realMin) + realMax) / steps;
     }
@@ -50,15 +41,13 @@ public class Mandelbrot {
     protected void calculateStepValueRangesRealAndImaginary() {
         real = new double[steps];
         real[0] = realMin;
-        real[steps - 1] = realMax;
 
         imaginary = new double[steps];
         imaginary[0] = imaginaryMin;
-        imaginary[steps - 1] = imaginaryMax;
 
         double rangeRealMinLocal = realMin;
         double rangeImaginaryMinLocal = imaginaryMin;
-        for(int i = 1; i < steps - 1; i++) {
+        for(int i = 1; i < steps; i++) {
             rangeRealMinLocal += stepSize;
             real[i] = rangeRealMinLocal;
 
@@ -67,59 +56,40 @@ public class Mandelbrot {
         }
     }
 
-    private int[] calculateMandelbrotValuesStream() {
-        return Arrays.stream(real)
+    protected void streamMandelbrotCalculations(ConcurrentLinkedQueue<AsyncFractalView.PixelUpdate> pixelBuffer) {
+        Arrays.stream(real)
             .parallel()
-            .boxed()
-            .flatMapToInt(r -> Arrays.stream(imaginary)
-                    .mapToInt(i -> calculateAbsoluteValue(r, i)))
-            .toArray();
+            .forEach(r -> Arrays.stream(imaginary)
+                    .forEach(i -> {
+                        int x = (int) ((r - realMin) / stepSize);
+                        int y = (int) ((i - imaginaryMin) / stepSize);
+                        int iterations = calculateAbsoluteValue(0, 0, r, i);
+                        addBackPressure(pixelBuffer);
+                        pixelBuffer.offer(new AsyncFractalView.PixelUpdate(x, y, iterations));
+                    }));
     }
 
-    private int calculateAbsoluteValue(double real, double imaginary) {
-        double zReal = 0;
-        double zImaginary = 0;
-
-        for (int i = 0; i < maxIterations; i++) {
-            double zRealNew = zReal * zReal - zImaginary * zImaginary + real;
-            zImaginary = 2 * zReal * zImaginary + imaginary;
-            zReal = zRealNew;
-            if(isNotMandelbrotSetMember(zReal, zImaginary)){
-                return i;
-            }
-        }
-        return maxIterations;
-    }
-
-    protected int[] calculateJuliaMengeValues(double cReal, double cImaginary) {
-        int[] results = new int[real.length * imaginary.length];
-        for (int i = 0; i < real.length; i++) {
-            double zReal = real[i];
-            for (int j = 0; j < imaginary.length; j++) {
-                double zImaginary = imaginary[j];
-                int index = i * real.length + j;
-                results[index] = calculateJuliaMenge(zReal, zImaginary, cReal, cImaginary);
-            }
-        }
-        return results;
-    }
-
-    protected int[] getJulisSetFromCoordinate(int cRealIndex, int cImaginaryIndex) {
-        int[] results = new int[real.length * imaginary.length];
+    protected void streamJulisSetFromCoordinate(int cRealIndex, int cImaginaryIndex, ConcurrentLinkedQueue<AsyncFractalView.PixelUpdate> pixelBuffer) {
         double cReal = real[cRealIndex];
         double cImaginary = imaginary[cImaginaryIndex];
-        for (int i = 0; i < real.length; i++) {
-            double zReal = real[i];
-            for (int j = 0; j < imaginary.length; j++) {
-                double zImaginary = imaginary[j];
-                int index = i * real.length + j;
-                results[index] = calculateJuliaMenge(zReal, zImaginary, cReal, cImaginary);
-            }
-        }
-        return results;
+        Arrays.stream(real)
+            .parallel()
+                .forEach(zReal -> Arrays.stream(imaginary).forEach(zImaginary -> {
+                    int x = (int) ((zReal - realMin) / stepSize);
+                    int y = (int) ((zImaginary - imaginaryMin) / stepSize);
+                    int iterations = calculateAbsoluteValue(zReal, zImaginary, cReal, cImaginary);
+                    addBackPressure(pixelBuffer);
+                    pixelBuffer.offer(new AsyncFractalView.PixelUpdate(x, y, iterations));
+                }));
     }
 
-    protected int calculateJuliaMenge(double zReal, double zImaginary, double cReal, double cImaginary) {
+    private void addBackPressure(ConcurrentLinkedQueue<AsyncFractalView.PixelUpdate> pixelBuffer) {
+        while (pixelBuffer.size() > Config.getPixelBufferBatchSize() * 2) {
+            Thread.yield();
+        }
+    }
+
+    protected int calculateAbsoluteValue(double zReal, double zImaginary, double cReal, double cImaginary) {
         for (int i = 0; i < maxIterations; i++) {
             double zRealNew = zReal * zReal - zImaginary * zImaginary + cReal;
             zImaginary = 2 * zReal * zImaginary + cImaginary;

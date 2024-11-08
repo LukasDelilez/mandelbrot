@@ -42,4 +42,8 @@ public class Config {
     public static double getImaginaryMax() {
         return Double.parseDouble(properties.getProperty("imaginaryMax"));
     }
+
+    public static int getPixelBufferBatchSize() {
+        return Integer.parseInt(properties.getProperty("batchSize"));
+    }
 }

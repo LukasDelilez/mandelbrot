@@ -2,6 +2,8 @@ import javafx.application.Application;
 import javafx.scene.input.MouseButton;
 import javafx.stage.Stage;
 
+import java.util.concurrent.CompletableFuture;
+
 public class Visualization extends Application {
 
     private FractalWindow fractalWindow;
@@ -10,15 +12,12 @@ public class Visualization extends Application {
     @Override
     public void start(Stage primaryStage) {
 
-
-        fractalController = new FractalController();
-        int[] mandelbrotResults = fractalController.calculateMandelbrotSet();
-
         AsyncFractalView mandelbrotView = new AsyncFractalView(Config.getSteps(), Config.getMaxIterations());
-        mandelbrotView.startRendering();
         fractalWindow = new FractalWindow("MandelbrotSet", mandelbrotView, null);
+        fractalController = new FractalController();
 
-        mandelbrotView.draw(mandelbrotResults);
+        mandelbrotView.startRendering();
+        CompletableFuture.runAsync(() -> fractalController.streamMandelbrotSet(mandelbrotView.getPixelBuffer()));
 
         setUpJuliaSetHandler(mandelbrotView);
         fractalWindow.getStage().setOnCloseRequest(_ -> {
@@ -29,6 +28,7 @@ public class Visualization extends Application {
             if(isMinimized) mandelbrotView.stopRendering();
             else mandelbrotView.startRendering();
         });
+
         fractalWindow.show();
     }
 
@@ -43,10 +43,10 @@ public class Visualization extends Application {
     }
 
     private void createJuliaSetView(int x, int y) {
-        int[] juliaMenge = fractalController.calculateJuliaSet(x, y);
 
         AsyncFractalView juliaView = new AsyncFractalView(Config.getSteps(), Config.getMaxIterations());
-        juliaView.draw(juliaMenge);
+        juliaView.startRendering();
+        CompletableFuture.runAsync(() -> fractalController.StreamJuliaSet(x, y, juliaView.getPixelBuffer()));
 
         FractalWindow juliaSetWindow = new FractalWindow("Julia Set", juliaView, fractalWindow.getStage());
         juliaSetWindow.show();

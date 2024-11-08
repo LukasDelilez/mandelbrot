@@ -8,22 +8,20 @@ import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
 import javafx.util.Duration;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.stream.IntStream;
 
 public class FractalView {
 
-    private ImageView fraktalView;
+    private ImageView fractalView;
     private WritableImage writableImage;
     protected PixelWriter pixelWriter;
     protected final int steps;
     protected final int maxIterations;
 
-    private record PixelUpdate(int x, int y, int iterations){}
+    record PixelUpdate(int x, int y, int iterations){}
     private final ConcurrentLinkedQueue<PixelUpdate> pixelBuffer;
     private final Timeline updateTimeline;
-    private final int BATCH_SIZE = 10000;
+    protected final int BATCH_SIZE = Config.getPixelBufferBatchSize();
 
     public FractalView(int steps, int maxIterations) {
         this.steps = steps;
@@ -36,7 +34,7 @@ public class FractalView {
     protected void initializeView() {
         writableImage = new WritableImage(steps, steps);
         pixelWriter = writableImage.getPixelWriter();
-        fraktalView = new ImageView(writableImage);
+        fractalView = new ImageView(writableImage);
     }
 
     private Timeline createUpdateTimeline() {
@@ -66,20 +64,6 @@ public class FractalView {
         }
     }
 
-    public void draw(int[] results) {
-        CompletableFuture.runAsync(() -> {
-            IntStream.range(0, steps).parallel()
-                    .forEach(x -> {
-                        IntStream.range(0, steps).forEach(y -> {
-                            int index = x * steps + y;
-                            if (index < steps * steps) {
-                                pixelBuffer.offer(new PixelUpdate(x, y, results[index]));
-                            }
-                        });
-                    });
-        });
-    }
-
     protected Color getColorInRange(int iterations) {
         double fraction = (double)iterations / maxIterations;
         int hex = (int) (16777215 * fraction);
@@ -89,6 +73,6 @@ public class FractalView {
     }
 
     public Node getView() {
-        return fraktalView;
+        return fractalView;
     }
 }

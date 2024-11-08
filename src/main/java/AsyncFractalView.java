@@ -4,21 +4,23 @@ import javafx.animation.Timeline;
 import javafx.scene.paint.Color;
 import javafx.util.Duration;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.stream.IntStream;
 
 public class AsyncFractalView extends FractalView {
 
-    private record PixelUpdate(int x, int y, int iterations){}
+    protected record PixelUpdate(int x, int y, int iterations){}
     private final ConcurrentLinkedQueue<PixelUpdate> pixelBuffer;
     private final Timeline updateTimeline;
-    private final int BATCH_SIZE = 10000;
+    private volatile boolean isCalculating = false;
+    private final long totalPixels;
+    private long pixelsProcessed;
 
     public AsyncFractalView(int steps, int maxIterations) {
         super(steps, maxIterations);
         pixelBuffer = new ConcurrentLinkedQueue<>();
         updateTimeline = createUpdateTimeline();
+        totalPixels = (long) steps * steps;
+        pixelsProcessed = 0;
     }
 
     private Timeline createUpdateTimeline() {
@@ -28,7 +30,12 @@ public class AsyncFractalView extends FractalView {
         return timeline;
     }
 
+    protected ConcurrentLinkedQueue<PixelUpdate> getPixelBuffer() {
+        return pixelBuffer;
+    }
+
     public void startRendering() {
+        isCalculating = true;
         updateTimeline.play();
     }
 
@@ -44,22 +51,16 @@ public class AsyncFractalView extends FractalView {
                 Color color = getColorInRange(update.iterations());
                 pixelWriter.setColor(update.x, update.y, color);
                 processed++;
+                pixelsProcessed++;
+            }
+            if (pixelsProcessed >= totalPixels) {
+                System.out.println("Finished processing");
+                isCalculating = false;
             }
         }
-    }
 
-    @Override
-    public void draw(int[] results) {
-        CompletableFuture.runAsync(() -> {
-            IntStream.range(0, steps).parallel()
-                .forEach(x -> {
-                    IntStream.range(0, steps).forEach(y -> {
-                        int index = x * steps + y;
-                        if (index < steps * steps) {
-                            pixelBuffer.offer(new PixelUpdate(x, y, results[index]));
-                        }
-                    });
-                });
-        });
+        if (!isCalculating && pixelBuffer.isEmpty()){
+            stopRendering();
+        }
     }
 }

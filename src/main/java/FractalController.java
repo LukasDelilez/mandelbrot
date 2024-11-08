@@ -1,3 +1,5 @@
+import java.util.concurrent.ConcurrentLinkedQueue;
+
 public class FractalController {
 
     private final Mandelbrot mandelbrot;
@@ -6,11 +8,11 @@ public class FractalController {
         this.mandelbrot = new Mandelbrot();
     }
 
-    public int[] calculateMandelbrotSet() {
-        return mandelbrot.getMandelbrotSet();
+    public void streamMandelbrotSet(ConcurrentLinkedQueue<AsyncFractalView.PixelUpdate> pixelBuffer) {
+        mandelbrot.streamMandelbrotCalculations(pixelBuffer);
     }
 
-    public int[] calculateJuliaSet(int x, int y) {
-        return mandelbrot.getJulisSetFromCoordinate(x, y);
+    public void StreamJuliaSet(int x, int y, ConcurrentLinkedQueue<AsyncFractalView.PixelUpdate> pixelBuffer) {
+        mandelbrot.streamJulisSetFromCoordinate(x, y, pixelBuffer);
     }
 }
